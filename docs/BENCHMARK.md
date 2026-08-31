@@ -56,12 +56,57 @@ treating it as a final reported number. See "How to reproduce" below.)*
   (deeper networks, more training data, attention aggregation, more epochs)
   are needed before drawing a stronger conclusion either way.
 
+## Ablation study: aggregation variant and depth
+
+Run via `scripts/run_ablation.py` on a fixed 20x20 grid graph (400 nodes,
+10 highway shortcuts), 1500 sampled (source, target) pairs, 150 training
+epochs, same seed for graph/data generation across all configs — only the
+factor under test (aggregation function or layer depth) is varied.
+
+**Ablation 1 — aggregation variant (depth fixed at 3 layers):**
+
+| Aggregation | Train time (s) | Test MAE | Rel. error % | Inference (ms/query) |
+|---|---|---|---|---|
+| mean      | 2.4 | 5.48 | 18.2% | 0.0098 |
+| max       | 1.4 | 4.89 | 17.0% | 0.0103 |
+| attention | 1.5 | **4.57** | **15.4%** | 0.0128 |
+
+**Ablation 2 — depth (aggregation fixed at mean):**
+
+| Layers | Train time (s) | Test MAE | Rel. error % | Inference (ms/query) |
+|---|---|---|---|---|
+| 1 | 0.6 | 6.56 | 23.2% | 0.0050 |
+| 2 | 0.8 | 5.58 | 20.4% | 0.0070 |
+| 3 | 2.4 | 5.48 | 18.2% | 0.0098 |
+| 4 | 1.4 | **5.30** | **17.6%** | 0.0117 |
+
+### Reading these results honestly
+
+- **Attention aggregation gave the best accuracy** in this run (15.4% vs.
+  18.2% for mean), at a small inference-time cost (~30% slower per query
+  than mean) — a real, usable tradeoff, not a huge win either way.
+- **Depth helps, but with diminishing and non-monotonic returns**: going
+  from 1→2→3 layers steadily improved accuracy, but 3→4 layers showed only
+  a marginal further gain relative to the jump from 1→2. This is consistent
+  with a 20x20 grid graph's effective diameter — beyond a certain depth,
+  additional message-passing rounds propagate information the readout
+  doesn't need to already reach both endpoints of most sampled pairs.
+- **These are single-seed results**, not averaged over multiple random
+  initializations. The differences between aggregation variants (15.4% vs
+  18.2%) are real but not necessarily statistically robust — see "Planned
+  follow-up experiments" below.
+- Training time does not scale monotonically with layer count in this run
+  (layers=3 took longer than layers=4) — likely run-to-run variance in this
+  environment's compute rather than a real architectural effect; wall-clock
+  training time here should be read as approximate, not precise.
+
+Raw results: `results/ablation_20260831_195119.json`.
+
 ## Planned follow-up experiments
 
-1. **Aggregation variant comparison** — mean vs. max vs. attention
-   aggregation, same architecture otherwise, same train/val/test split.
-2. **Depth ablation** — 1 / 2 / 3 / 4 message-passing layers, measuring
-   accuracy vs. training time vs. inference time tradeoff.
+1. ~~**Aggregation variant comparison**~~ — done above; consider re-running
+   across 3-5 seeds to get error bars, since this run used a single seed.
+2. ~~**Depth ablation**~~ — done above; same caveat on seed variance.
 3. **Scale study** — repeat the full benchmark at 10x10, 25x25, 50x50 grid
    sizes to see how the GNN's speed advantage (or accuracy gap) changes as
    graph size grows.

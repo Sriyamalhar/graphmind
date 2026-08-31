@@ -55,6 +55,36 @@ def test_gnn_gradients_flow_to_all_parameters():
         assert param.grad is not None, f"No gradient reached parameter: {name}"
 
 
+def test_max_aggregation_gradients_flow_across_multiple_backward_passes():
+    # Regression test: the original _scatter_max implementation used an
+    # in-place Python loop (`out[index[i]] = ...`) that raised
+    # "modified by an inplace operation" on the SECOND backward call in a
+    # training loop (autograd's saved-tensor version counter caught the
+    # mutation). A single backward() call did not catch it — this test
+    # runs multiple steps, like a real training loop, to actually catch it.
+    batch = _sample_batch()
+    model = GraphMindGNN(
+        node_feat_dim=batch.node_features.size(1),
+        hidden_dim=16,
+        num_layers=2,
+        aggregation="max",
+    )
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    src = torch.tensor([0, 1, 2])
+    dst = torch.tensor([8, 7, 6])
+    target = torch.tensor([3.0, 2.0, 1.0])
+
+    for _ in range(5):
+        optimizer.zero_grad()
+        preds = model(batch, src, dst)
+        loss = ((preds - target) ** 2).mean()
+        loss.backward()
+        optimizer.step()
+
+    for name, param in model.named_parameters():
+        assert param.grad is not None, f"No gradient reached parameter: {name}"
+
+
 def test_gnn_same_node_pair_has_small_distance_after_training_step():
     # Sanity check only (not a convergence guarantee): after a single
     # optimizer step toward distance=0 for identical source/target,

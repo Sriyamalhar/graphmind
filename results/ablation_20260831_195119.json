@@ -1,0 +1,91 @@
+{
+  "config": {
+    "graph_rows": 20,
+    "graph_cols": 20,
+    "num_shortcuts": 10,
+    "num_pairs": 1500,
+    "num_epochs": 150,
+    "lr": 0.003,
+    "seed": 7
+  },
+  "results": [
+    {
+      "aggregation": "mean",
+      "num_layers": 3,
+      "hidden_dim": 32,
+      "final_train_loss": 53.962440490722656,
+      "final_val_loss": 75.87664031982422,
+      "final_val_mae": 6.700644493103027,
+      "training_time_sec": 2.3646167140000216,
+      "test_mae": 5.475288860085632,
+      "test_rmse": 6.89569701389084,
+      "test_mean_relative_error_pct": 18.163805700681408,
+      "avg_inference_ms_per_query": 0.009764629464242043
+    },
+    {
+      "aggregation": "max",
+      "num_layers": 3,
+      "hidden_dim": 32,
+      "final_train_loss": 37.50542449951172,
+      "final_val_loss": 57.900726318359375,
+      "final_val_mae": 6.031411647796631,
+      "training_time_sec": 1.3639267279999956,
+      "test_mae": 4.894607188424103,
+      "test_rmse": 6.14589492256738,
+      "test_mean_relative_error_pct": 17.014715058728697,
+      "avg_inference_ms_per_query": 0.010284397321440914
+    },
+    {
+      "aggregation": "attention",
+      "num_layers": 3,
+      "hidden_dim": 32,
+      "final_train_loss": 37.96852111816406,
+      "final_val_loss": 59.26457977294922,
+      "final_val_mae": 6.132348537445068,
+      "training_time_sec": 1.453167019999995,
+      "test_mae": 4.571033364943391,
+      "test_rmse": 5.816392150689084,
+      "test_mean_relative_error_pct": 15.39827340744913,
+      "avg_inference_ms_per_query": 0.0127766874999935
+    },
+    {
+      "aggregation": "mean",
+      "num_layers": 1,
+      "hidden_dim": 32,
+      "final_train_loss": 74.21405792236328,
+      "final_val_loss": 100.6185302734375,
+      "final_val_mae": 7.763465404510498,
+      "training_time_sec": 0.5632362590000071,
+      "test_mae": 6.564319912638209,
+      "test_rmse": 8.101378501724207,
+      "test_mean_relative_error_pct": 23.23283846389086,
+      "avg_inference_ms_per_query": 0.004973477678582583
+    },
+    {
+      "aggregation": "mean",
+      "num_layers": 2,
+      "hidden_dim": 32,
+      "final_train_loss": 54.84486389160156,
+      "final_val_loss": 76.0597915649414,
+      "final_val_mae": 6.958472728729248,
+      "training_time_sec": 0.8295511759999954,
+      "test_mae": 5.579798475496426,
+      "test_rmse": 7.016150917350085,
+      "test_mean_relative_error_pct": 20.411273369979597,
+      "avg_inference_ms_per_query": 0.006970111607123337
+    },
+    {
+      "aggregation": "mean",
+      "num_layers": 4,
+      "hidden_dim": 32,
+      "final_train_loss": 44.560394287109375,
+      "final_val_loss": 60.383480072021484,
+      "final_val_mae": 6.02777099609375,
+      "training_time_sec": 1.4357634109999822,
+      "test_mae": 5.303414073675463,
+      "test_rmse": 6.609986427793155,
+      "test_mean_relative_error_pct": 17.643186158477484,
+      "avg_inference_ms_per_query": 0.011732473214287609
+    }
+  ]
+}

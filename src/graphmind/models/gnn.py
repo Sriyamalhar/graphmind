@@ -187,10 +187,21 @@ def _scatter_mean(src: torch.Tensor, index: torch.Tensor, num_nodes: int) -> tor
 
 
 def _scatter_max(src: torch.Tensor, index: torch.Tensor, num_nodes: int) -> torch.Tensor:
-    out = torch.full((num_nodes, src.size(-1)), float("-inf"), dtype=src.dtype, device=src.device)
-    for i in range(index.size(0)):
-        out[index[i]] = torch.maximum(out[index[i]], src[i])
-    out[out == float("-inf")] = 0.0
+    """Per-destination-node max over incoming messages.
+
+    Uses `scatter_reduce` (out-of-place, autograd-friendly) rather than a
+    Python loop with in-place tensor writes — the original loop-based
+    version broke gradient tracking under backprop (in-place mutation of
+    a tensor autograd needs for the backward pass), so this scatter_reduce
+    formulation is required, not just a style preference.
+    """
+    expanded_index = index.unsqueeze(-1).expand(-1, src.size(-1))
+    out = torch.full(
+        (num_nodes, src.size(-1)), float("-inf"), dtype=src.dtype, device=src.device
+    )
+    out = out.scatter_reduce(0, expanded_index, src, reduce="amax", include_self=True)
+    # Nodes with no incoming edges stay at -inf; zero them out instead.
+    out = torch.where(torch.isinf(out), torch.zeros_like(out), out)
     return out
 
 
