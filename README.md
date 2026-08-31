@@ -61,6 +61,29 @@ Dijkstra/A* run exact per-pair searches (slower, exact). Both the speed gap
 and the accuracy gap are reported — this is not a "GNN wins" project, it's
 a "here is the real tradeoff, with numbers" project.
 
+## Interpretability
+
+Beyond benchmark numbers, `scripts/generate_interpretability_report.py`
+trains an attention-aggregation model and extracts two views into what it
+actually learned:
+
+**Attention weights** — which edges the final message-passing layer relies
+on most. In practice, the model consistently assigns its highest attention
+to the graph's long-range "highway shortcut" edges rather than ordinary
+grid edges — a sensible finding, since shortcuts are exactly the edges that
+most change a shortest-path distance if ignored.
+
+![Attention weights on the grid graph](docs/figures/attention_weights_layer2.png)
+
+**Embedding structure** — a t-SNE projection of final-layer node embeddings,
+colored by node degree. The projection organizes nodes into a ring shape
+(perimeter vs. interior nodes), and the small number of high-degree
+shortcut-endpoint nodes (bright yellow/green) cluster distinctly rather
+than blending in — evidence the model learned something about structural
+role, not just a re-encoding of raw (x, y) position.
+
+![t-SNE projection of node embeddings](docs/figures/embedding_tsne.png)
+
 ## Project structure
 
 ```
@@ -108,8 +131,8 @@ This project is under active development. Current milestones:
 - [x] Training loop with metric history tracking
 - [x] Benchmark suite (accuracy, speed, memory) vs. classical algorithms
 - [x] CI/CD via GitHub Actions (lint + test on every push)
-- [ ] Aggregation variant + depth ablation study
-- [ ] Interpretability dashboard (attention maps, embedding visualization)
+- [x] Aggregation variant + depth ablation study
+- [x] Interpretability report (attention maps, t-SNE embedding visualization)
 - [ ] FastAPI + WebSocket serving
 - [ ] React frontend (chat + live visualization)
 - [ ] Generalization experiment on unseen graphs (inductive setting)

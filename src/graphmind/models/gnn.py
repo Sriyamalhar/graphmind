@@ -78,13 +78,24 @@ class MessagePassingLayer(nn.Module):
         if aggregation == "attention":
             self.attn_score = nn.Linear(hidden_dim, 1)
 
-    def forward(self, h: torch.Tensor, edge_index: torch.Tensor, edge_weight: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self,
+        h: torch.Tensor,
+        edge_index: torch.Tensor,
+        edge_weight: torch.Tensor,
+        return_attention: bool = False,
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor | None]:
         """
         h:           [num_nodes, hidden_dim]
         edge_index:  [2, num_edges]  (row 0 = source u, row 1 = target v)
         edge_weight: [num_edges]
+        return_attention: if True and aggregation="attention", also returns
+            the per-edge attention weight tensor [num_edges] used in this
+            forward pass (for the interpretability dashboard). Ignored for
+            mean/max aggregation (returns None in that slot instead).
 
-        Returns updated node embeddings [num_nodes, hidden_dim].
+        Returns updated node embeddings [num_nodes, hidden_dim], or
+        (embeddings, attention_weights) if return_attention=True.
         """
         num_nodes = h.size(0)
         src, dst = edge_index[0], edge_index[1]
@@ -97,20 +108,25 @@ class MessagePassingLayer(nn.Module):
         )  # [num_edges, hidden_dim]
 
         # --- 2. AGGREGATE (messages arriving at each destination node) ---
+        attn_weights = None
         if self.aggregation == "mean":
             agg = _scatter_mean(messages, dst, num_nodes)
         elif self.aggregation == "max":
             agg = _scatter_max(messages, dst, num_nodes)
         elif self.aggregation == "attention":
             scores = self.attn_score(messages).squeeze(-1)  # [num_edges]
-            weights = _scatter_softmax(scores, dst, num_nodes)
-            agg = _scatter_sum(messages * weights.unsqueeze(-1), dst, num_nodes)
+            attn_weights = _scatter_softmax(scores, dst, num_nodes)
+            agg = _scatter_sum(messages * attn_weights.unsqueeze(-1), dst, num_nodes)
         else:
             raise ValueError(f"Unknown aggregation: {self.aggregation}")
 
         # --- 3. UPDATE (residual) ---
         h_new = self.update_mlp(torch.cat([h, agg], dim=-1))
-        return h + h_new  # residual connection stabilizes deeper stacks
+        h_out = h + h_new  # residual connection stabilizes deeper stacks
+
+        if return_attention:
+            return h_out, attn_weights
+        return h_out
 
 
 class GraphMindGNN(nn.Module):
@@ -138,12 +154,29 @@ class GraphMindGNN(nn.Module):
             nn.Linear(hidden_dim, 1),
         )
 
-    def encode(self, batch: BatchedGraph) -> torch.Tensor:
-        """Runs message passing and returns final node embeddings."""
+    def encode(
+        self, batch: BatchedGraph, return_attention: bool = False
+    ) -> torch.Tensor | tuple[torch.Tensor, list[torch.Tensor | None]]:
+        """Runs message passing and returns final node embeddings.
+
+        If return_attention=True, also returns a list (one entry per
+        layer) of that layer's per-edge attention weights — only
+        populated (non-None) for layers using attention aggregation.
+        Used by the interpretability dashboard to visualize which edges
+        the model relies on most.
+        """
         h = self.input_proj(batch.node_features)
+        attn_per_layer: list[torch.Tensor | None] = []
         for layer in self.layers:
-            h = layer(h, batch.edge_index, batch.edge_weight)
-        return h  # [num_nodes, hidden_dim]
+            if return_attention:
+                h, attn = layer(h, batch.edge_index, batch.edge_weight, return_attention=True)
+                attn_per_layer.append(attn)
+            else:
+                h = layer(h, batch.edge_index, batch.edge_weight)
+
+        if return_attention:
+            return h, attn_per_layer
+        return h
 
     def predict_distance(
         self, node_embeddings: torch.Tensor, source_idx: torch.Tensor, target_idx: torch.Tensor
